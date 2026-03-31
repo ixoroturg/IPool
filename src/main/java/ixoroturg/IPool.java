@@ -61,7 +61,7 @@ public class IPool<T> implements AutoCloseable{
 				}
 			}
 			if(entry == null){
-				if(opened > 0){
+				if(currentSize - opened > 0){
 					entry = open();
 				} else if(maxSize != 0 && pool.length == maxSize){
 					try {
@@ -72,7 +72,8 @@ public class IPool<T> implements AutoCloseable{
 							this.wait(timeout);
 							time = System.currentTimeMillis() - time;
 							if (time >= timeout){
-								throw new RuntimeException("IPool timeout");
+								if(currentSize ==  opened)
+									throw new RuntimeException("IPool timeout");
 							}
 						}
 					} catch (InterruptedException e) {
@@ -85,6 +86,8 @@ public class IPool<T> implements AutoCloseable{
 					if(newLength == pool.length){
 						newLength++;
 					}
+					if(newLength > maxSize)
+						newLength = maxSize;
 					IPoolEntry[] newPool = (IPoolEntry[]) new Object[newLength];
 					for(int i = 0; i < pool.length; i++){
 						newPool[i] = pool[i];
@@ -105,6 +108,7 @@ public class IPool<T> implements AutoCloseable{
 		if(autoReset){
 			entry.reset();
 		}
+		entry.invalid = false;
 		validate(entry);
 		entry.retry = 0;
 		return entry;
@@ -112,8 +116,13 @@ public class IPool<T> implements AutoCloseable{
 	private void validate(IPoolEntry entry){
 		if(validator != null && !validator.test(entry.value)){
 			byte testAction = action;
+			if(entry.invalid){
+				entry.close();
+				throw new RuntimeException("Cannot validate object");
+			}
 			if(entry.retry >= maxRetry)
 				testAction = fallback;
+			entry.retry++;
 			switch(testAction){
 				case RESET -> {
 					if(resetFunction == null){
@@ -135,18 +144,17 @@ public class IPool<T> implements AutoCloseable{
 					T test = reviver.apply(entry.value);
 					if(test == null){
 						entry.close();
-						entry.retry++;
 						throw new RuntimeException("Could not revive object");
 					}
 					entry.value = test;
 				}
 				case EXCEPTION -> {
+					entry.close();
 					throw new RuntimeException("Invalid pool object");
 				}
 			}
-			if(entry.retry >= maxRetry){
-				throw new RuntimeException("Cannot validate object");
-			}
+			if(entry.retry >= maxRetry)
+				entry.invalid = true;
 			validate(entry);
 		}
 	}
@@ -167,9 +175,12 @@ public class IPool<T> implements AutoCloseable{
 
 	public void async(Consumer<IPoolEntry> action){
 		Thread.ofVirtual().start(()->{
-			IPoolEntry entry = open();
+			IPoolEntry entry = null;
 			try{
+				entry = open();
 				action.accept(entry);
+			}catch(Exception e){
+				action.accept(null);	
 			}finally{
 				entry.close();
 			}
@@ -181,10 +192,13 @@ public class IPool<T> implements AutoCloseable{
 
 	public void asyncReset(Consumer<IPoolEntry> action){
 		Thread.ofVirtual().start(()->{
-			IPoolEntry entry = open();
-			entry.reset();
+			IPoolEntry entry = null;
 			try{
+				entry = open();
+				entry.reset();
 				action.accept(entry);
+			}catch(Exception e){
+				action.accept(null);
 			}finally{
 				entry.close();
 			}
@@ -199,12 +213,13 @@ public class IPool<T> implements AutoCloseable{
 		private float scale = 1.5f;
 		private Predicate<B> validator;
 		private Function<B,B> reviver;
-		private byte onInvalid = RESET;
+		private byte onInvalid = EXCEPTION;
 		private int timeout = 0;
 		private Consumer<B> closeFunction;
 		private boolean autoReset = false;
 		private byte fallback = RE_CREATE;
 		private int maxRetry = 5;
+		
 		
 		public Builder<B> size(int size) {
 			if(size <= 0){
@@ -317,6 +332,7 @@ public class IPool<T> implements AutoCloseable{
 			IPool.this.notifyAll();
 		}
 		private int retry = 0;
+		private boolean invalid = false;
 		private boolean open = true;
 		public T value;
 	}
