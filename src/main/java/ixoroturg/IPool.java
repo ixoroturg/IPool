@@ -23,6 +23,11 @@ public class IPool<T> implements AutoCloseable{
 	private int opened = 0;
 	private byte fallback;
 	private int maxRetry;
+	
+	private int totalFailed = 0;
+	private int totalOpened = 0;
+	private int totalSuccessOpened = 0;
+	private long totalWaitingTime = 0;
 
 	private IPool(int initSize, Supplier<T> generator){
 		pool = (IPoolEntry[]) new Object[initSize];
@@ -62,13 +67,13 @@ public class IPool<T> implements AutoCloseable{
 			}
 			if(entry == null){
 				if(currentSize - opened > 0){
-					entry = open();
+					entry = open(access);
 				} else if(maxSize != 0 && pool.length == maxSize){
 					try {
+						long time = System.currentTimeMillis();
 						if(timeout == 0 || access == 2){
 								this.wait();
 						} else {
-							long time = System.currentTimeMillis();
 							this.wait(timeout);
 							time = System.currentTimeMillis() - time;
 							if (time >= timeout){
@@ -76,6 +81,8 @@ public class IPool<T> implements AutoCloseable{
 									throw new RuntimeException("IPool timeout");
 							}
 						}
+						time = System.currentTimeMillis();
+						totalWaitingTime += time;
 					} catch (InterruptedException e) {
 						System.err.println("Error in IPool");
 						e.printStackTrace();
@@ -101,6 +108,7 @@ public class IPool<T> implements AutoCloseable{
 				}
 			}
 			opened++;
+			totalOpened++;
 		}
 		if(access == 2){
 			return entry;
@@ -111,6 +119,7 @@ public class IPool<T> implements AutoCloseable{
 		entry.invalid = false;
 		validate(entry);
 		entry.retry = 0;
+		totalSuccessOpened++;
 		return entry;
 	}
 	private void validate(IPoolEntry entry){
@@ -123,6 +132,7 @@ public class IPool<T> implements AutoCloseable{
 			if(entry.retry >= maxRetry)
 				testAction = fallback;
 			entry.retry++;
+			totalFailed++;
 			switch(testAction){
 				case RESET -> {
 					if(resetFunction == null){
@@ -157,6 +167,28 @@ public class IPool<T> implements AutoCloseable{
 				entry.invalid = true;
 			validate(entry);
 		}
+	}
+
+	public int getOpenAttempts(){
+		return totalOpened;
+	}
+	public int getSuccessOpenAttempts(){
+		return totalSuccessOpened;
+	}
+	public int getTotalFailed(){
+		return totalFailed;
+	}
+	public long getTotalWaitingTime(){
+		return totalWaitingTime;
+	}
+	public long getAvgWaitingTime(){
+		return totalWaitingTime/totalOpened;
+	}
+	public int getPoolSize(){
+		return pool.length;
+	}
+	public int getAvailableObjects(){
+		return currentSize;
 	}
 	
 	@Override
