@@ -1,4 +1,4 @@
-package ixoroturg;
+package ixoroturg.pool;
 
 import java.util.function.Supplier;
 import java.util.function.Function;
@@ -24,7 +24,6 @@ public class IPool<T> implements AutoCloseable{
 	private int opened = 0;
 	private byte fallback;
 	private int maxRetry;
-	// private IPool<T> parent = this;
 	
 	private int totalFailed = 0;
 	private int totalOpened = 0;
@@ -32,7 +31,6 @@ public class IPool<T> implements AutoCloseable{
 	private long totalWaitingTime = 0;
 
 	private IPool(int initSize, Supplier<T> generator){
-		// pool = (IPoolEntry[]) new Object[initSize];
 		pool = (IPoolEntry[]) Array.newInstance(IPool.IPoolEntry.class, initSize);
 		this.generator = generator;
 	}
@@ -61,10 +59,6 @@ public class IPool<T> implements AutoCloseable{
 					break;
 				}
 			}
-			// if(entry == null){
-			// 	if(currentSize - opened > 0){
-			// 		entry = open(access);
-			// 	} else
 			if(entry == null){
 				if(maxSize != 0 && pool.length == maxSize){
 					try {
@@ -363,7 +357,6 @@ public class IPool<T> implements AutoCloseable{
 				opened--;
 				IPool.this.notifyAll();
 			}
-			// parent.notifyAll();
 		}
 		private int retry = 0;
 		private boolean invalid = false;
