@@ -1,2 +1,4 @@
 #!/bin/bash
-mvn clean compile test jar:jar
+mvn clean compile test jar:jar $$
+cd target &&
+jar -uf IPool.java -C ../src/main/java .
