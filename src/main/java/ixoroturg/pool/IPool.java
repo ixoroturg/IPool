@@ -2,6 +2,7 @@ package ixoroturg;
 
 import java.util.function.Supplier;
 import java.util.function.Function;
+import java.lang.reflect.Array;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -23,6 +24,7 @@ public class IPool<T> implements AutoCloseable{
 	private int opened = 0;
 	private byte fallback;
 	private int maxRetry;
+	// private IPool<T> parent = this;
 	
 	private int totalFailed = 0;
 	private int totalOpened = 0;
@@ -30,7 +32,8 @@ public class IPool<T> implements AutoCloseable{
 	private long totalWaitingTime = 0;
 
 	private IPool(int initSize, Supplier<T> generator){
-		pool = (IPoolEntry[]) new Object[initSize];
+		// pool = (IPoolEntry[]) new Object[initSize];
+		pool = (IPoolEntry[]) Array.newInstance(IPool.IPoolEntry.class, initSize);
 		this.generator = generator;
 	}
 	public IPoolEntry open(){
@@ -44,19 +47,7 @@ public class IPool<T> implements AutoCloseable{
 				throw new RuntimeException("This IPool is closed");
 			}
 			for(int i = 0; i < pool.length; i++){
-				if(!pool[i].open){
-					pool[i].open = true;
-					entry = pool[i];
-					break;
-				}
 				if(pool[i] == null){
-					if(access == 0 && isClosing == 1){
-						throw new RuntimeException("This IPool is closed");
-					}
-					// else if(access == 2){
-					// 	if(currentSize > 0)
-					// 		return open(access);
-					// }
 					if(access == 2)
 						continue;
 					pool[i] = new IPoolEntry(generator.get());
@@ -64,11 +55,18 @@ public class IPool<T> implements AutoCloseable{
 					currentSize++;
 					break;
 				}
+				if(!pool[i].open){
+					pool[i].open = true;
+					entry = pool[i];
+					break;
+				}
 			}
+			// if(entry == null){
+			// 	if(currentSize - opened > 0){
+			// 		entry = open(access);
+			// 	} else
 			if(entry == null){
-				if(currentSize - opened > 0){
-					entry = open(access);
-				} else if(maxSize != 0 && pool.length == maxSize){
+				if(maxSize != 0 && pool.length == maxSize){
 					try {
 						long time = System.currentTimeMillis();
 						if(timeout == 0 || access == 2){
@@ -102,9 +100,7 @@ public class IPool<T> implements AutoCloseable{
 					pool = newPool;
 					entry = open(access);
 				} else {
-					if(entry == null){
-						entry = open(access);
-					}
+					return null;
 				}
 			}
 			opened++;
@@ -184,6 +180,9 @@ public class IPool<T> implements AutoCloseable{
 	public long getAvgWaitingTime(){
 		return totalWaitingTime/totalOpened;
 	}
+	public int getOpenedObjects(){
+		return opened;
+	}
 	public int getPoolSize(){
 		return pool.length;
 	}
@@ -193,15 +192,15 @@ public class IPool<T> implements AutoCloseable{
 	
 	@Override
 	public void close(){
-		isClosing = 1;
+		synchronized(this){
+			isClosing = 1;
+			notifyAll();
+		}
 		if(closeFunction == null)
 			return;
 		for(;currentSize > 0; currentSize--){
 			IPoolEntry entry = open((byte)2);
-			if(entry != null)
 				closeFunction.accept(entry.value);
-			else
-				currentSize++;
 		}
 	}
 
@@ -359,9 +358,12 @@ public class IPool<T> implements AutoCloseable{
 		}
 		@Override
 		public void close(){
-			open = false;
-			opened--;
-			IPool.this.notifyAll();
+			synchronized(IPool.this){
+				open = false;
+				opened--;
+				IPool.this.notifyAll();
+			}
+			// parent.notifyAll();
 		}
 		private int retry = 0;
 		private boolean invalid = false;

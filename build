@@ -1,2 +1,2 @@
 #!/bin/bash
-mvn clean compile jar:jar
+mvn clean compile test jar:jar
