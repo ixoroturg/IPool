@@ -4,8 +4,8 @@
   <modelVersion>4.0.0</modelVersion>
 
   <groupId>ixoroturg</groupId>
-  <artifactId>IPool</artifactId>
-  <version>2.0.0</version>
+  <artifactId>pool</artifactId>
+  <version>2.1.0</version>
   <packaging>jar</packaging>
 
   <name>Pool</name>
@@ -71,5 +71,6 @@
         </plugin>
       </plugins>
     </pluginManagement>
+	<finalName>IPool</finalName>
   </build>
 </project>
