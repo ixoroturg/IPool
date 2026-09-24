@@ -85,8 +85,9 @@ public class IPool<T> implements AutoCloseable{
 					if(newLength == pool.length){
 						newLength++;
 					}
-					if(newLength > maxSize)
+					if(maxSize != 0 && newLength > maxSize){
 						newLength = maxSize;
+					}
 
 					IPoolEntry[] newPool = (IPoolEntry[]) Array.newInstance(IPool.IPoolEntry.class, newLength);
 					for(int i = 0; i < pool.length; i++){

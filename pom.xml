@@ -15,8 +15,10 @@
 
 	<distributionManagement>
 		<repository>
-			<id>meteor-repo</id>
-			<url>http://climspr.meteo.ru:8081/repository/maven-releases</url>
+			<id>ixoroturg</id>
+			<url>https://maven.pkg.github.com/ixoroturg/maven-repo</url>
+			<!-- <id>meteor-repo</id> -->
+			<!-- <url>http://climspr.meteo.ru:8081/repository/maven-releases</url> -->
 		</repository>
 	</distributionManagement>
 
