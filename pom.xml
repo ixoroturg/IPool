@@ -3,9 +3,9 @@
   xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <groupId>ixoroturg</groupId>
+  <groupId>ru.ixoroturg</groupId>
   <artifactId>pool</artifactId>
-  <version>2.1.1</version>
+  <version>2.1.1-SHAPSHOT</version>
   <packaging>jar</packaging>
 
   <name>Pool</name>
@@ -14,12 +14,16 @@
 
 
 	<distributionManagement>
-		<repository>
-			<id>ixoroturg</id>
-			<url>https://maven.pkg.github.com/ixoroturg/maven-repo</url>
-			<!-- <id>meteor-repo</id> -->
-			<!-- <url>http://climspr.meteo.ru:8081/repository/maven-releases</url> -->
-		</repository>
+		<snapshotRepository>
+			<id>central</id>
+			<url>https://central.sonatype.com/repository/maven-snapshots/</url>
+		</snapshotRepository>
+		<!-- <repository> -->
+		<!-- 	<id>ixoroturg</id> -->
+		<!-- 	<url>https://maven.pkg.github.com/ixoroturg/maven-repo</url> -->
+		<!--  <id>meteor-repo</id> -->
+		<!-- 	<url>http://climspr.meteo.ru:8081/repository/maven-releases</url> -->
+		<!-- </repository> -->
 	</distributionManagement>
 
   <properties>
